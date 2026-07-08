@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Monitoring STP — PLN UIP Sulawesi</title>
+<link rel="icon" href="favicon.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2a78d6">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
@@ -42,26 +46,26 @@ body{
 @keyframes spin{to{transform:rotate(360deg)}}
 .stamp{font-size:11px;color:var(--ink-3);text-align:center;padding:6px 0 0}
 
-/* ---------- Cards & tiles ---------- */
+/* ---------- Cards ---------- */
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-top:12px}
-.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
-.tile{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px}
-.tile .v{font-size:26px;font-weight:700;line-height:1.1}
-.tile .l{font-size:12px;color:var(--ink-2);margin-top:2px}
-.tile .v.ok{color:var(--ok)} .tile .v.no{color:var(--no)} .tile .v.pr{color:var(--proses-ink)}
+
+/* ---------- Header hero (gambar + logo) ---------- */
+.hero-header{position:relative;margin-top:12px;border-radius:var(--radius);overflow:hidden;
+  aspect-ratio:3/1;background:#cfd6dd no-repeat center/cover}
+.hero-header img.logo{position:absolute;top:10px;right:10px;height:34px;width:auto;
+  filter:drop-shadow(0 1px 3px rgba(0,0,0,.25))}
 
 /* ---------- Chips / filters ---------- */
 .chips{display:flex;gap:6px;overflow-x:auto;padding:10px 0 2px;scrollbar-width:none}
 .chips::-webkit-scrollbar{display:none}
-.chip{border:1px solid var(--grid);background:var(--surface);color:var(--ink-2);border-radius:999px;
-  padding:6px 13px;font-size:13px;white-space:nowrap;cursor:pointer;flex:none}
+.chip{border:1px solid var(--grid);background:var(--surface);color:var(--ink-2);border-radius:8px;
+  padding:5px 10px;font-size:10.5px;white-space:nowrap;cursor:pointer;flex:none}
 .chip.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
 .search{width:100%;margin-top:8px;padding:9px 12px;border:1px solid var(--grid);border-radius:10px;
   font:inherit;font-size:14px;background:var(--surface);color:var(--ink)}
 .search::placeholder{color:var(--ink-3)}
 
 /* ---------- Project card ---------- */
-.proj{cursor:pointer}
 .proj .top{display:flex;gap:8px;align-items:flex-start}
 .proj h3{font-size:14.5px;font-weight:700;flex:1;line-height:1.3}
 .badge{display:inline-block;font-size:11px;font-weight:600;border-radius:999px;padding:2px 9px;white-space:nowrap}
@@ -102,11 +106,6 @@ body{
 .pager .info{font-size:12px;color:var(--ink-3);width:100%;text-align:center;margin-top:4px}
 
 /* ---------- Rekap ---------- */
-.hero .pct{font-size:42px;font-weight:700;line-height:1}
-.hero .cap{font-size:13px;color:var(--ink-2);margin-top:4px}
-.pbar{height:10px;background:var(--page);border:1px solid var(--grid);border-radius:999px;margin-top:12px;overflow:hidden}
-.pbar>div{height:100%;background:var(--accent);border-radius:999px}
-.tiles3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:12px}
 h2.sec{font-size:14px;font-weight:700;margin:4px 0 2px}
 .card h2.sec{margin:0 0 4px}
 .chartbox{position:relative;width:100%}
@@ -552,18 +551,11 @@ function filteredProjects(){
 }
 function renderBeranda(){
   const ps = state.projects;
-  const total = ps.length;
-  const done = ps.filter(isDone).length;
-  const totOK = ps.reduce((a,p)=>a+okCount(p),0);
-  const pct = total ? Math.round(totOK/(total*TOTAL_ITEM)*100) : 0;
   const kels = [...new Set(ps.map(p=>p.kelompok))];
 
   $('#tab-beranda').innerHTML = `
-    <div class="tiles">
-      <div class="tile"><div class="v">${total}</div><div class="l">Total proyek</div></div>
-      <div class="tile"><div class="v" style="color:var(--accent)">${pct}%</div><div class="l">Kelengkapan dokumen</div></div>
-      <div class="tile"><div class="v ok">${done}</div><div class="l">Selesai (${TOTAL_ITEM}/${TOTAL_ITEM})</div></div>
-      <div class="tile"><div class="v no">${total-done}</div><div class="l">Belum lengkap</div></div>
+    <div class="hero-header" style="background-image:url('background-PLN.jpg')">
+      <img class="logo" src="logo-PLN.png" alt="Logo PLN">
     </div>
     <div class="chips">${['Semua',...UPPS].map(u=>
       `<button class="chip ${filterUpp===u?'on':''}" data-upp="${u}">${u}</button>`).join('')}</div>
@@ -644,9 +636,9 @@ function bindCards(){
     if(!p) return;
     card.addEventListener('click', e=>{
       const act = e.target.closest('[data-act]');
-      if(act) e.stopPropagation();
-      if(act && act.dataset.act==='upload') bukaUpload(p);
-      else location.hash = '#p/'+p.id;   // kartu atau tombol Detail
+      if(!act) return;   // klik di area kartu selain tombol tidak melakukan apa-apa
+      if(act.dataset.act==='upload') bukaUpload(p);
+      else if(act.dataset.act==='detail') location.hash = '#p/'+p.id;
     });
   });
 }
@@ -794,10 +786,10 @@ function renderRekap(){
   const r = hitungRekap();
   $('#tab-rekap').innerHTML = `
     ${r.perUppKurang.map(u=>`
-    <div class="card"><h2 class="sec">Kekurangan dokumen — UPP ${esc(u.upp)}</h2>
+    <div class="card"><h2 class="sec">Kekurangan Dokumen — UPP ${esc(u.upp)}</h2>
       <div style="font-size:12px;color:var(--ink-3);margin-bottom:4px">Jumlah proyek (dari ${u.nProyek}) yang masih kurang per jenis item</div>
       <div class="chartbox" style="height:${26*u.items.length+40}px"><canvas id="chUpp-${esc(u.upp)}"></canvas></div></div>`).join('')}
-    <div class="card"><h2 class="sec">Pareto kekurangan dokumen</h2>
+    <div class="card"><h2 class="sec">Pareto Kekurangan Dokumen</h2>
       <div style="font-size:12px;color:var(--ink-3);margin-bottom:4px">Jumlah proyek (seluruh UPP) yang masih kekurangan tiap jenis item, urut terbanyak</div>
       <div class="chartbox" style="height:${30*r.hambat.length+40}px"><canvas id="chDok"></canvas></div></div>
     <div class="rekap-actions">
@@ -935,14 +927,14 @@ async function eksporPDF(){
 
   let y = 57;
   doc.setFont('helvetica','bold'); doc.setFontSize(10);
-  doc.text('Pareto kekurangan dokumen (jumlah proyek yang masih kurang, seluruh UPP)', M, y);
+  doc.text('Pareto Kekurangan Dokumen (jumlah proyek yang masih kurang, seluruh UPP)', M, y);
   const c2 = document.getElementById('pdfDok');
   let h2 = (W-2*M) * c2.height / c2.width;
   doc.addImage(c2.toDataURL('image/png'), 'PNG', M, y+2, W-2*M, h2);
   y += h2 + 10;
 
   // Kekurangan per UPP: 4 grafik dalam susunan 2 kolom
-  doc.text('Kekurangan dokumen per UPP', M, y); y += 3;
+  doc.text('Kekurangan Dokumen per UPP', M, y); y += 3;
   const colW = (W - 2*M - 6) / 2;
   for(let i=0; i<r.perUppKurang.length; i+=2){
     const pair = r.perUppKurang.slice(i, i+2);
