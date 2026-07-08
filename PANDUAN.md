@@ -1,5 +1,8 @@
 # Panduan Aplikasi Monitoring STP — PLN UIP Sulawesi
 
+> **Aplikasi sudah online**: https://muhzainudin7.github.io/monitoring-stp/
+> Kode tersimpan di: https://github.com/muhzainudin7/monitoring-stp
+
 Aplikasi ini satu file saja: `index.html`, dan bersifat **hanya-baca (viewer)**.
 Siapa pun yang membuka URL-nya hanya bisa melihat status, membuka halaman Detail,
 dan mengunggah dokumen lewat link OneDrive. **Satu-satunya cara mengubah data adalah
