@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Monitoring STP — PLN UIP Sulawesi</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+<style>
+:root{
+  --page:#f9f9f7; --surface:#fcfcfb;
+  --ink:#0b0b0b; --ink-2:#52514e; --ink-3:#898781;
+  --grid:#e1e0d9; --border:rgba(11,11,11,.10);
+  --accent:#2a78d6; --accent-dark:#1c5cab;
+  --ok:#0ca30c; --ok-bg:#e7f6e7;
+  --proses:#fab219; --proses-bg:#fdf3dc; --proses-ink:#8a5e00;
+  --no:#d03b3b; --no-bg:#fbe9e9;
+  --radius:12px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+  background:var(--page); color:var(--ink); font-size:15px; line-height:1.45;
+  padding-bottom:calc(64px + env(safe-area-inset-bottom));
+}
+.wrap{max-width:520px;margin:0 auto;padding:0 12px}
+
+/* ---------- App bar ---------- */
+.appbar{position:sticky;top:0;z-index:40;background:var(--surface);border-bottom:1px solid var(--grid)}
+.appbar-in{max-width:520px;margin:0 auto;padding:10px 12px;display:flex;align-items:center;gap:8px}
+.appbar h1{font-size:16px;font-weight:700;flex:1;line-height:1.2}
+.appbar .sub{font-size:11px;color:var(--ink-3);font-weight:400;display:block}
+.iconbtn{
+  border:1px solid var(--grid);background:var(--surface);color:var(--ink-2);
+  width:36px;height:36px;border-radius:10px;font-size:17px;cursor:pointer;flex:none;
+  display:flex;align-items:center;justify-content:center;
+}
+.iconbtn:active{background:var(--page)}
+.iconbtn.spin svg{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.stamp{font-size:11px;color:var(--ink-3);text-align:center;padding:6px 0 0}
+
+/* ---------- Cards & tiles ---------- */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-top:12px}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.tile{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px}
+.tile .v{font-size:26px;font-weight:700;line-height:1.1}
+.tile .l{font-size:12px;color:var(--ink-2);margin-top:2px}
+.tile .v.ok{color:var(--ok)} .tile .v.no{color:var(--no)} .tile .v.pr{color:var(--proses-ink)}
+
+/* ---------- Chips / filters ---------- */
+.chips{display:flex;gap:6px;overflow-x:auto;padding:10px 0 2px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{border:1px solid var(--grid);background:var(--surface);color:var(--ink-2);border-radius:999px;
+  padding:6px 13px;font-size:13px;white-space:nowrap;cursor:pointer;flex:none}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.search{width:100%;margin-top:8px;padding:9px 12px;border:1px solid var(--grid);border-radius:10px;
+  font:inherit;font-size:14px;background:var(--surface);color:var(--ink)}
+.search::placeholder{color:var(--ink-3)}
+
+/* ---------- Project card ---------- */
+.proj{cursor:pointer}
+.proj .top{display:flex;gap:8px;align-items:flex-start}
+.proj h3{font-size:14.5px;font-weight:700;flex:1;line-height:1.3}
+.badge{display:inline-block;font-size:11px;font-weight:600;border-radius:999px;padding:2px 9px;white-space:nowrap}
+.badge.prog{background:var(--page);border:1px solid var(--grid);color:var(--ink-2);font-variant-numeric:tabular-nums}
+.badge.prog.full{background:var(--ok-bg);border-color:var(--ok);color:#006300}
+.badge.prog.zero{background:var(--no-bg);border-color:var(--no);color:var(--no)}
+.meta{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.badge.upp{background:#e8f0fb;color:var(--accent-dark)}
+.badge.kel{background:var(--page);border:1px solid var(--grid);color:var(--ink-2)}
+.badge.kel.km26{background:#fdf3dc;border-color:var(--proses);color:var(--proses-ink)}
+.badge.tgt{background:var(--page);border:1px solid var(--grid);color:var(--ink-2)}
+.docgrid{display:grid;grid-template-columns:repeat(10,1fr) 4px 1fr;gap:3px;margin-top:10px;align-items:stretch}
+.docsep{background:var(--grid);border-radius:2px;width:2px;justify-self:center}
+.doc{border-radius:5px;padding:4px 0 3px;text-align:center;line-height:1.15}
+.doc .s{font-size:11px;font-weight:700;display:block}
+.doc .a{font-size:8px;font-weight:600;display:block;transform:scale(.92)}
+.doc.OK{background:var(--ok);color:#fff}
+.doc.PROSES{background:var(--proses);color:#5c3d00}
+.doc.NO{background:var(--no);color:#fff}
+.missing{font-size:12.5px;color:var(--ink-2);margin-top:9px}
+.missing b{color:var(--no);font-weight:600}
+.missing .pr{color:var(--proses-ink)}
+.done-note{font-size:12.5px;color:#006300;margin-top:9px;font-weight:600}
+.actions{display:flex;gap:8px;margin-top:11px}
+.btn{border:0;border-radius:10px;padding:9px 12px;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn.primary{background:var(--accent);color:#fff;flex:1}
+.btn.primary:active{background:var(--accent-dark)}
+.btn.ghost{background:var(--surface);border:1px solid var(--grid);color:var(--ink-2);flex:1}
+.empty{color:var(--ink-3);text-align:center;padding:32px 0;font-size:14px}
+
+/* ---------- Paginasi ---------- */
+.pager{display:flex;gap:6px;justify-content:center;align-items:center;margin:16px 0 4px;flex-wrap:wrap}
+.pager button{min-width:36px;height:36px;border:1px solid var(--grid);border-radius:10px;background:var(--surface);
+  color:var(--ink-2);font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;padding:0 10px}
+.pager button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.pager button:disabled{opacity:.4;cursor:default}
+.pager .info{font-size:12px;color:var(--ink-3);width:100%;text-align:center;margin-top:4px}
+
+/* ---------- Rekap ---------- */
+.hero .pct{font-size:42px;font-weight:700;line-height:1}
+.hero .cap{font-size:13px;color:var(--ink-2);margin-top:4px}
+.pbar{height:10px;background:var(--page);border:1px solid var(--grid);border-radius:999px;margin-top:12px;overflow:hidden}
+.pbar>div{height:100%;background:var(--accent);border-radius:999px}
+.tiles3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:12px}
+h2.sec{font-size:14px;font-weight:700;margin:4px 0 2px}
+.card h2.sec{margin:0 0 4px}
+.chartbox{position:relative;width:100%}
+.rekap-actions{display:flex;gap:10px;margin-top:14px}
+.rekap-actions .btn{flex:1;padding:12px}
+
+/* ---------- Halaman Detail ---------- */
+.backbar{display:flex;align-items:center;gap:8px;margin-top:12px}
+.backbar button{border:1px solid var(--grid);background:var(--surface);border-radius:10px;padding:8px 14px;
+  font:inherit;font-size:13.5px;font-weight:600;color:var(--ink-2);cursor:pointer}
+.backbar .t{font-size:12px;color:var(--ink-3)}
+.pend{border-left:4px solid var(--grid)}
+.pend.open{border-left-color:var(--no)}
+.pend.close{border-left-color:var(--ok)}
+.pend .head{display:flex;gap:8px;align-items:flex-start}
+.pend .no{flex:none;width:26px;height:26px;border-radius:8px;background:var(--page);border:1px solid var(--grid);
+  display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--ink-2)}
+.pend .desc{flex:1;font-size:13.5px;font-weight:600;line-height:1.35}
+.pend .sub{font-size:12.5px;font-weight:400;color:var(--ink-2);margin-top:3px}
+.pend .stat{flex:none;font-size:11px;font-weight:700;border-radius:999px;padding:3px 10px}
+.pend.close .stat{background:var(--ok-bg);color:#006300}
+.pend.open .stat{background:var(--no-bg);color:var(--no)}
+.pend .when{font-size:12.5px;color:var(--ink-2);margin-top:8px}
+.pend .when b{font-weight:600}
+.dsum{display:flex;gap:8px;margin-top:12px}
+.dsum .b{flex:1;border-radius:var(--radius);padding:10px;text-align:center;border:1px solid var(--border);background:var(--surface)}
+.dsum .b .v{font-size:22px;font-weight:700}
+.dsum .b .l{font-size:11.5px;color:var(--ink-2)}
+.dsum .b.o .v{color:var(--no)} .dsum .b.c .v{color:var(--ok)}
+.loading{text-align:center;color:var(--ink-3);padding:28px 0;font-size:13.5px}
+.loading .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent);
+  margin:0 2px;animation:blink 1s infinite alternate}
+.loading .dot:nth-child(2){animation-delay:.3s}.loading .dot:nth-child(3){animation-delay:.6s}
+@keyframes blink{from{opacity:.2}to{opacity:1}}
+.note{font-size:12px;color:var(--ink-3);margin-top:10px}
+
+/* ---------- Bottom nav ---------- */
+.nav{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--grid);z-index:50;
+  padding-bottom:env(safe-area-inset-bottom)}
+.nav-in{max-width:520px;margin:0 auto;display:flex}
+.nav button{flex:1;border:0;background:none;padding:8px 0 7px;font:inherit;font-size:11px;color:var(--ink-3);cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:2px}
+.nav button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.nav button.on{color:var(--accent);font-weight:700}
+
+/* ---------- Toast ---------- */
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom));
+  background:var(--ink);color:#fff;font-size:13.5px;padding:10px 18px;border-radius:999px;z-index:100;
+  opacity:0;transition:opacity .25s;pointer-events:none;max-width:88vw;text-align:center}
+.toast.show{opacity:1}
+
+@media(min-width:560px){body{font-size:15px}}
+</style>
+</head>
+<body>
+
+<header class="appbar">
+  <div class="appbar-in">
+    <h1>Monitoring STP<span class="sub">PT PLN (Persero) UIP Sulawesi</span></h1>
+    <button class="iconbtn" id="btnSync" title="Muat ulang dari spreadsheet" aria-label="Sinkron">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>
+    </button>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="stamp" id="stamp"></div>
+  <section id="tab-beranda"></section>
+  <section id="tab-rekap" hidden></section>
+  <section id="page-detail" hidden></section>
+</main>
+
+<nav class="nav">
+  <div class="nav-in">
+    <button data-tab="beranda" class="on">
+      <svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>Beranda</button>
+    <button data-tab="rekap">
+      <svg viewBox="0 0 24 24"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg>Rekap</button>
+  </div>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+/* ================= Konstanta ================= */
+const DOCS = [
+  {nama:'FAC / BA ST II', abbr:'FAC'},
+  {nama:'PCR',            abbr:'PCR'},
+  {nama:'Dok. Tanah',     abbr:'TNH'},
+  {nama:'Dok. Perijinan', abbr:'IJN'},
+  {nama:'Notulen',        abbr:'NTL'},
+  {nama:'BA STAP',        abbr:'STAP'},
+  {nama:'BA STOP',        abbr:'STOP'},
+  {nama:'Nota Buku',      abbr:'NB'},
+  {nama:'Dok. Lingkungan',abbr:'LING'},
+  {nama:'SLO',            abbr:'SLO'},
+];
+const PENDING_LABEL = 'Pending Item';
+const TOTAL_ITEM = 11; // 10 dokumen + Pending Item (PNDG)
+const UPPS = ['SULSEL','SULTRA','SULTENG','SULUT'];
+const SYM = {OK:'✓', PROSES:'~', NO:'✕'};
+const BULAN = {JAN:1,FEB:2,MAR:3,APR:4,MEI:5,MAY:5,JUN:6,JUL:7,AGU:8,AUG:8,SEP:9,OKT:10,OCT:10,NOV:11,DES:12,DEC:12};
+const BULAN_ID = ['','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+const SHEET_ID = '11HucbNhETMFnwOkKcCtluyUyosmInWAj';
+const LS_KEY = 'stp-rekap-v2';
+const PAGE_SIZE = 10;
+
+/* Data cadangan ter-embed (d = 10 huruf O/P/N sesuai urutan DOCS, p = status Pending Item) */
+const SEED_RAW = [
+{"n":"PLTU KENDARI (1 X 10 MW)","u":"SULTRA","k":"KM 2025","t":"KM - SMT 2","p":"OK","d":"OOOOOOOOOO"},
+{"n":"GI 150 kV BANTAENG SWITCHING (EXT; LB HENGSENG \u0026 UNITY)","u":"SULSEL","k":"KM 2025","t":"KM - SMT 2","p":"OK","d":"OOOOOOOOOO"},
+{"n":"GI 150 kV KOLAKA SMELTER (NEW) - PARSIAL","u":"SULTRA","k":"KM 2025","t":"KM - SMT 2","p":"OK","d":"OOOOOOOOOO"},
+{"n":"GI 150 kV KOLAKA (EXT)","u":"SULTRA","k":"KM 2025","t":"KM - SMT 2","p":"OK","d":"OOPOOOOOOO"},
+{"n":"SUTT 150 KV PLTMG BAU-BAU INCOMER","u":"SULTRA","k":"KM 2025","t":"KM - SMT 2","p":"OK","d":"OOOOOOOOOO"},
+{"n":"GI 150 kV TALISE (EXT)","u":"SULTENG","k":"KM 2025","t":"KM - SMT 2","p":"PROSES","d":"OOOOOOOOOO"},
+{"n":"GI 150 kV PALU BARU (EXT)","u":"SULTENG","k":"KM 2025","t":"KM - SMT 2","p":"OK","d":"OOOOOOOOOO"},
+{"n":"GI 150 kV TAWAELI (NEW)","u":"SULTENG","k":"KM 2025","t":"KM - SMT 1","p":"PROSES","d":"OOOOOOOOOO"},
+{"n":"T/L 150 KV LIKUPANG - PANDU","u":"SULUT","k":"KM 2025","t":"KM - SMT 2","p":"OK","d":"OOPOOOOOOO"},
+{"n":"T/L 150 KV SISTEM GORONTALO (RE-ROUTE) ARAH ISIMU - TILAMUTA","u":"SULUT","k":"KM 2025","t":"BEYOND KM","p":"OK","d":"OOOOOOOOOO"},
+{"n":"PLTU SULSEL BARRU-2 (100 MW)","u":"SULSEL","k":"KM 2025","t":"BEYOND KM","p":"OK","d":"OOOOOOOOOO"},
+{"n":"GI 150 KV MAMUJU BARU (NEW)","u":"SULSEL","k":"KM 2026","t":"JUN - 26","p":"OK","d":"OOPOOOOOOO"},
+{"n":"SUTT 150 KV KOLAKA – POMALAA","u":"SULTRA","k":"KM 2026","t":"DES -26","p":"NO","d":"OONOOOONNO"},
+{"n":"SUTT 150 KV POMALAA – PT ANTAM POMALAA","u":"SULTRA","k":"KM 2026","t":"DES -26","p":"NO","d":"OONOOOONNO"},
+{"n":"GI 150 KV KOLONEDALE (NEW)","u":"SULTENG","k":"KM 2026","t":"DES -26","p":"NO","d":"OONOOOONOO"},
+{"n":"T/L 150 KV LIKUPANG - PANIKI","u":"SULUT","k":"KM 2026","t":"NOV -26","p":"OK","d":"OOPOOOOOOO"},
+{"n":"T/L 150 KV SISTEM GORONTALO (RE-ROUTE) ARAH ISIMU - TANJUNG KARANG","u":"SULUT","k":"KM 2026","t":"DES -26","p":"NO","d":"OOOOOOOOOO"},
+{"n":"SUTT 150 kV WOTU - MALILI","u":"SULSEL","k":"BEYOND KM 2026","t":"BEYOND","p":"OK","d":"OONOOOOOOO"},
+{"n":"SUTT 150 kV SENGKANG - SIWA","u":"SULSEL","k":"BEYOND KM 2026","t":"BEYOND","p":"OK","d":"OONOOOOOOO"},
+{"n":"SUTT 150 KV PUNAGAYA - TANJUNG BUNGA","u":"SULSEL","k":"BEYOND KM 2026","t":"BEYOND","p":"OK","d":"OONOOOOOOO"},
+{"n":"SUTT 150 KV SUNGGUMINASA - LANNA","u":"SULSEL","k":"BEYOND KM 2026","t":"BEYOND","p":"OK","d":"OONOOOOOOO"},
+{"n":"T/L 150 KV TOPOYO - PASANGKAYU","u":"SULSEL","k":"BEYOND KM 2026","t":"BEYOND","p":"OK","d":"OONOOOOOOO"},
+{"n":"SUTT 150 KV MAMUJU BARU - TOPOYO","u":"SULSEL","k":"BEYOND KM 2026","t":"BEYOND","p":"OK","d":"OONOOOOOOO"},
+{"n":"SUTT 275 KV INCOMER DOUBLE PHI WOTU","u":"SULSEL","k":"BEYOND KM 2026","t":"BEYOND","p":"OK","d":"ONNOOOOOON"},
+{"n":"SUTT 150 KV WOTU - MASAMBA","u":"SULSEL","k":"BEYOND KM 2026","t":"BEYOND","p":"NO","d":"OONOOOOOOO"},
+{"n":"UGC 150 KV TALLO LAMA - BONTOALA","u":"SULSEL","k":"BEYOND KM 2026","t":"BEYOND","p":"NO","d":"ONOOOOOOON"},
+{"n":"GI 150 KV BANTAENG SMELTER (SWITCHING DAN PELANGGAN)","u":"SULSEL","k":"BEYOND KM 2026","t":"BEYOND","p":"OK","d":"ONNOOOOOON"},
+{"n":"GI 150 KV TALLO LAMA (EXT)","u":"SULSEL","k":"BEYOND KM 2026","t":"BEYOND","p":"OK","d":"ONOOOOOOON"},
+{"n":"GI 150 KV BONTOALA (EXT)","u":"SULSEL","k":"BEYOND KM 2026","t":"BEYOND","p":"NO","d":"ONOOOOOOON"},
+{"n":"GI 150 KV MAROS (EXT) - PARSIAL","u":"SULSEL","k":"BEYOND KM 2026","t":"BEYOND","p":"OK","d":"ONOOOOOOOO"},
+{"n":"GI 150 KV MAKALE (EXT)","u":"SULSEL","k":"BEYOND KM 2026","t":"BEYOND","p":"OK","d":"OOOOONNNON"},
+{"n":"GITET 275/150 KV WOTU (EXT) - PARSIAL","u":"SULSEL","k":"BEYOND KM 2026","t":"BEYOND","p":"NO","d":"NNOOOOOOOO"},
+{"n":"SUTT 150 KV KOLONEDALE - BUNGKU","u":"SULSEL","k":"BEYOND KM 2026","t":"BEYOND","p":"NO","d":"NNNOOOONOO"},
+{"n":"GI 150 KV BUNGKU (NEW)","u":"SULSEL","k":"BEYOND KM 2026","t":"BEYOND","p":"NO","d":"NNNOOOONOO"},
+{"n":"GI 150 kV LUWUK (NEW)","u":"SULTENG","k":"BEYOND KM 2026","t":"BEYOND","p":"NO","d":"ONNOOOONNN"},
+{"n":"GI 150 KV PLTMG LUWUK (SUBSTATION)","u":"SULTENG","k":"BEYOND KM 2026","t":"BEYOND","p":"NO","d":"NNOOOOONON"},
+{"n":"SUTT 150 KV PLTMG LUWUK - TOILI","u":"SULTENG","k":"BEYOND KM 2026","t":"BEYOND","p":"NO","d":"ONNOOOONOO"},
+{"n":"PLTMG LUWUK (40 MW)","u":"SULTENG","k":"BEYOND KM 2026","t":"BEYOND","p":"NO","d":"NNOOOOONOO"},
+{"n":"PLTU PALU-3 (2X50 MW)","u":"SULTENG","k":"BEYOND KM 2026","t":"BEYOND","p":"NO","d":"NNOOOOONOO"},
+{"n":"GI 150 KV TENTENA (EXT)","u":"SULTENG","k":"BEYOND KM 2026","t":"BEYOND","p":"NO","d":"NONOOOONON"},
+{"n":"SUTT 150 KV KOLONEDALE - TENTENA","u":"SULTENG","k":"BEYOND KM 2026","t":"BEYOND","p":"NO","d":"ONNOOOONOO"},
+{"n":"GI 150 KV TOILI (NEW)","u":"SULTENG","k":"BEYOND KM 2026","t":"BEYOND","p":"NO","d":"NNNOOOONOO"},
+{"n":"GI 150 KV PLTU PALU-3","u":"SULTENG","k":"BEYOND KM 2026","t":"BEYOND","p":"NO","d":"NNOOOOOOON"},
+{"n":"SUTT 150 KV LUWUK – PLTMG LUWUK","u":"SULTENG","k":"BEYOND KM 2026","t":"BEYOND","p":"NO","d":"ONNOOOONOO"},
+{"n":"SUTT 150 KV TAWAELI - TALISE","u":"SULTENG","k":"BEYOND KM 2026","t":"BEYOND","p":"NO","d":"OONOOOOOOO"},
+{"n":"SUTT 150 KV TAWAELI - PALU 3","u":"SULTENG","k":"BEYOND KM 2026","t":"BEYOND","p":"NO","d":"OONOOOOOOO"},
+{"n":"SUTT 150 KV UNAAHA - KENDARI","u":"SULTRA","k":"BEYOND KM 2026","t":"BEYOND","p":"OK","d":"OONOOOOOOO"},
+{"n":"SUTT 150 KV MALILI - LASUSUA","u":"SULTRA","k":"BEYOND KM 2026","t":"BEYOND","p":"OK","d":"OONOOOOOOO"},
+{"n":"SUTT 150 KV LASUSUA - KOLAKA","u":"SULTRA","k":"BEYOND KM 2026","t":"BEYOND","p":"OK","d":"OONOOOOOOO"},
+{"n":"SUTT 150 KV RAHA - BAU BAU","u":"SULTRA","k":"BEYOND KM 2026","t":"BEYOND","p":"NO","d":"OONOOOOOOO"},
+{"n":"T/L 150 KV ANDOOLO - KASIPUTE","u":"SULTRA","k":"BEYOND KM 2026","t":"BEYOND","p":"OK","d":"OONOOOOOOO"},
+{"n":"GI 150 KV TINANGGEA SWITCHING (NEW) - PARSIAL","u":"SULTRA","k":"BEYOND KM 2026","t":"BEYOND","p":"NO","d":"NOOOOOOOOO"},
+{"n":"SUTT 150 KV PLTG/MG MPP SULSELBAR – GI KOLAKA SMELTER - PARSIAL","u":"SULTRA","k":"BEYOND KM 2026","t":"BEYOND","p":"NO","d":"OONOOOONOO"},
+{"n":"GI 150 KV TUTUYAN (NEW) - PARSIAL","u":"SULUT","k":"BEYOND KM 2026","t":"BEYOND","p":"OK","d":"OOOOOOOOOO"},
+{"n":"GI 150 KV LIKUPANG (NEW) - PARSIAL","u":"SULUT","k":"BEYOND KM 2026","t":"BEYOND","p":"NO","d":"OONOOOOOOO"},
+{"n":"GI 150 KV TOLINGGULA (NEW) - PARSIAL","u":"SULUT","k":"BEYOND KM 2026","t":"BEYOND","p":"NO","d":"OOOOOOOOOO"},
+{"n":"GI 150 KV TANJUNG MERAH","u":"SULUT","k":"BEYOND KM 2026","t":"BEYOND","p":"OK","d":"OOOOOOOOON"},
+{"n":"SUTT 150 KV OTAM - MOLIBAGU","u":"SULUT","k":"BEYOND KM 2026","t":"BEYOND","p":"NO","d":"OONOOOOOOO"},
+{"n":"SUTT 150 KV OTAM - TUTUYAN","u":"SULUT","k":"BEYOND KM 2026","t":"BEYOND","p":"NO","d":"OONOOOOOOO"},
+{"n":"SUTT 150 KV MARISA - MOUTONG - GI PELANGGAN (BJA)","u":"SULUT","k":"BEYOND KM 2026","t":"BEYOND","p":"NO","d":"OONOOOOOOO"},
+{"n":"SUTT 150 KV ANGGREK - TOLINGGULA","u":"SULUT","k":"BEYOND KM 2026","t":"BEYOND","p":"NO","d":"NNNOOOOOOO"},
+{"n":"GI 150 KV PLTU SULUT-1","u":"SULUT","k":"BEYOND KM 2026","t":"BEYOND","p":"NO","d":"NNOOOOONOO"},
+{"n":"PLTU SULUT-1 (2X50 MW)","u":"SULUT","k":"BEYOND KM 2026","t":"BEYOND","p":"NO","d":"NNOOOOONOO"},
+{"n":"GI 150 KV MARISA (EXT; 2 LB ARAH PELANGGAN PT GSM)","u":"SULUT","k":"BEYOND KM 2026","t":"BEYOND","p":"NO","d":"NNNOOOONOO"},
+{"n":"SUTT 150 KV MARISA - PELANGGAN PT GSM","u":"SULUT","k":"BEYOND KM 2026","t":"BEYOND","p":"NO","d":"NNNOOOONOO"}
+];
+
+/* Peta nama proyek (REKAP) -> nama sheet rincian pending item */
+const SHEET_MAP = {
+"gi 150 kv mamuju baru (new)": "GI Mamuju Baru (New)",
+"sutt 150 kv kolaka – pomalaa": "SUTT KOLAKA-POMALAA",
+"sutt 150 kv pomalaa – pt antam pomalaa": "SUTT POMALAA - PT. ANTAM)",
+"gi 150 kv kolonedale (new)": "GI 150 KV KOLONEDALE",
+"t/l 150 kv likupang - paniki": "TL Likupang-Paniki",
+"sutt 150 kv wotu - malili": "TL Wotu-Malili",
+"sutt 150 kv sengkang - siwa": "TL Sengkang-Siwa",
+"sutt 150 kv punagaya - tanjung bunga": "TL Punagaya-Tj.Bunga",
+"sutt 150 kv sungguminasa - lanna": "TL Sungguminasa-Lanna",
+"t/l 150 kv topoyo - pasangkayu": "TL Topoyo-Pasangkayu",
+"sutt 150 kv mamuju baru - topoyo": "TL Mamuju-Topoyo",
+"sutt 275 kv incomer double phi wotu": "TL Inc double phi Wotu",
+"sutt 150 kv wotu - masamba": "TL Wotu-Masamba",
+"ugc 150 kv tallo lama - bontoala": "UGC Tallo Lama-Bontoala",
+"gi 150 kv bantaeng smelter (switching dan pelanggan)": "GI Bantaeng Smelter",
+"gi 150 kv tallo lama (ext)": "GI Tallo Lama Ext",
+"gi 150 kv bontoala (ext)": "GI Bontoala Ext",
+"gi 150 kv maros (ext) - parsial": "GI Maros (Ext)",
+"gi 150 kv makale (ext)": "GI Makale (Ext) 2LB",
+"gitet 275/150 kv wotu (ext) - parsial": "GITET Wotu (Ext)",
+"sutt 150 kv kolonedale - bungku": "T L 150 kV Kolonedale – Bungku ",
+"gi 150 kv bungku (new)": "GI 150 KV BUNGKU NEW",
+"gi 150 kv luwuk (new)": "GI Luwuk (New)",
+"gi 150 kv pltmg luwuk (substation)": "GI PLTMG Luwuk (substation)",
+"sutt 150 kv pltmg luwuk - toili": "TL 150 KV PLTMG LUWUK - TOILI",
+"pltmg luwuk (40 mw)": "PLTMG Luwuk",
+"pltu palu-3 (2x50 mw)": "PLTU Palu 3",
+"gi 150 kv tentena (ext)": "GI 150 KV TENTENA EXT",
+"sutt 150 kv kolonedale - tentena": "TL KOLONEDALE - TENTENA",
+"gi 150 kv toili (new)": "GI 150 KV TOILI NEW",
+"gi 150 kv pltu palu-3": "GI PLTU Palu-3 (Substation)",
+"sutt 150 kv luwuk – pltmg luwuk": "TL Luwuk - PLTMG Luwuk Sec 1-2 ",
+"sutt 150 kv tawaeli - talise": "TL Tawaeli-Talise",
+"sutt 150 kv tawaeli - palu 3": "TL Tawaeli - Palu 3",
+"sutt 150 kv unaaha - kendari": "TL Unaaha-Kendari",
+"sutt 150 kv malili - lasusua": "TL Malili-Lasusua",
+"sutt 150 kv lasusua - kolaka": "TL Lasusua-Kolaka",
+"sutt 150 kv raha - bau bau": "TL Raha-Baubau",
+"t/l 150 kv andoolo - kasipute": "TL Andoolo-Kasipute",
+"gi 150 kv tinanggea switching (new) - parsial": "GI Tinanggea",
+"sutt 150 kv pltg/mg mpp sulselbar – gi kolaka smelter - parsial": "SUTT PLTG MPP SULSELBAR ",
+"gi 150 kv tutuyan (new) - parsial": "GI Tutuyan Parsial",
+"gi 150 kv likupang (new) - parsial": "GI Likupang Parsial",
+"gi 150 kv tolinggula (new) - parsial": "GI Tolinggula",
+"gi 150 kv tanjung merah": "GI Tanjung Merah Ext",
+"sutt 150 kv otam - molibagu": "TL Otam-Molibagu",
+"sutt 150 kv otam - tutuyan": "TL Otam-Tutuyan",
+"sutt 150 kv marisa - moutong - gi pelanggan (bja)": "TL Marisa-Moutong-BJA",
+"sutt 150 kv anggrek - tolinggula": "TL Anggrek-Tolinggula",
+"gi 150 kv pltu sulut-1": "GI 150 KV PLTU SULUT 1",
+"pltu sulut-1 (2x50 mw)": "PLTU SULUT 1",
+"gi 150 kv marisa (ext; 2 lb arah pelanggan pt gsm)": "GI Marisa Ext arah GSM",
+"sutt 150 kv marisa - pelanggan pt gsm": "SUTT GI Marisa - Pelanggan PT G",
+"t/l 150 kv sistem gorontalo (re-route) arah isimu - tanjung karang": "TL Sis. Gor (Isimu - Tjg Karang"
+};
+
+/* ================= State ================= */
+let state = null;
+let filterUpp = 'Semua', filterKel = 'Semua', search = '', page = 1;
+let charts = {};
+const detailCache = {};
+
+function decodeSeed(){
+  return SEED_RAW.filter(r => r.k !== 'KM 2025').map((r,i)=>({
+    id:i, nama:r.n, upp:r.u, kelompok:r.k, targetLabel:r.t,
+    target: targetToDate(r.t), linkUpload:'',
+    pendingItem: statusVal(r.p),
+    docs: r.d.split('').map(c => c==='O'?'OK':(c==='P'?'PROSES':'NO')),
+  }));
+}
+function load(){
+  try{
+    const raw = localStorage.getItem(LS_KEY);
+    if(raw){ const s = JSON.parse(raw); if(s && Array.isArray(s.projects) && s.projects.length) return s; }
+  }catch(e){}
+  return null;
+}
+function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){} }
+
+/* ================= Util ================= */
+const $ = s => document.querySelector(s);
+const esc = s => String(s??'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function toast(msg, ms=3000){
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove('show'), ms);
+}
+function fmtTanggal(iso){
+  if(!iso) return '';
+  const [y,m,d] = iso.split('-').map(Number);
+  return d+' '+BULAN_ID[m].slice(0,3)+' '+y;
+}
+function fmtWaktu(dt){
+  const d = new Date(dt);
+  return d.getDate()+' '+BULAN_ID[d.getMonth()+1].slice(0,3)+' '+d.getFullYear()+', '+
+    String(d.getHours()).padStart(2,'0')+'.'+String(d.getMinutes()).padStart(2,'0');
+}
+/* "JUN - 26" → 2026-06-30; "BEYOND"/"KM - SMT 2" → null */
+function targetToDate(label){
+  if(!label) return null;
+  const m = String(label).toUpperCase().match(/([A-Z]{3,4})\s*-?\s*(\d{2,4})/);
+  if(!m || !(m[1] in BULAN)) return null;
+  let y = Number(m[2]); if(y < 100) y += 2000;
+  const mo = BULAN[m[1]];
+  const last = new Date(y, mo, 0).getDate();
+  return y+'-'+String(mo).padStart(2,'0')+'-'+String(last).padStart(2,'0');
+}
+function kelompokDariLabel(label){
+  const t = String(label||'').toUpperCase();
+  if(t.includes('BEYOND')) return 'BEYOND KM 2026';
+  if(t.includes('SMT')) return 'KM 2025';
+  const d = targetToDate(t);
+  if(d) return 'KM '+d.slice(0,4);
+  return 'LAINNYA';
+}
+function normNama(s){ return String(s||'').toLowerCase().replace(/\s+/g,' ').trim(); }
+function statusVal(v){
+  const t = String(v||'').trim().toUpperCase();
+  if(t === 'OK') return 'OK';
+  if(t.startsWith('PROSES')) return 'PROSES';
+  return 'NO';
+}
+/* 11 status per proyek: 10 dokumen + Pending Item */
+function itemStatuses(p){ return [...p.docs, p.pendingItem]; }
+function itemLabels(){ return [...DOCS.map(d=>d.nama), PENDING_LABEL]; }
+function okCount(p){ return itemStatuses(p).filter(s=>s==='OK').length; }
+function isDone(p){ return okCount(p) === TOTAL_ITEM; }
+function missingItems(p){
+  const labels = itemLabels();
+  return itemStatuses(p).map((s,i)=> s==='OK' ? null : {nama:labels[i], status:s}).filter(Boolean);
+}
+/* Serial Excel (mis. 46326) → tanggal; teks lain dikembalikan apa adanya */
+function fmtSheetDate(v){
+  const t = String(v??'').trim();
+  if(!t) return '';
+  const m = t.match(/^(\d{5})(\.0+)?$/);
+  if(m){
+    const n = Number(m[1]);
+    if(n > 20000 && n < 60000){
+      const d = new Date(Math.round((n - 25569) * 86400000));
+      return d.getUTCDate()+' '+BULAN_ID[d.getUTCMonth()+1].slice(0,3)+' '+d.getUTCFullYear();
+    }
+  }
+  return t;
+}
+
+/* ================= Ambil data dari Google Spreadsheet ================= */
+function gvizCsvUrl(sheetName){
+  return 'https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:csv&sheet='+encodeURIComponent(sheetName);
+}
+/* Parser CSV yang menangani kutip & baris-baru di dalam sel */
+function parseCSV(text){
+  const rows = []; let row = [], cell = '', q = false;
+  for(let i=0;i<text.length;i++){
+    const c = text[i];
+    if(q){
+      if(c === '"'){ if(text[i+1] === '"'){ cell += '"'; i++; } else q = false; }
+      else cell += c;
+    }else{
+      if(c === '"') q = true;
+      else if(c === ','){ row.push(cell); cell=''; }
+      else if(c === '\n'){ row.push(cell); rows.push(row); row=[]; cell=''; }
+      else if(c !== '\r') cell += c;
+    }
+  }
+  if(cell !== '' || row.length){ row.push(cell); rows.push(row); }
+  return rows;
+}
+
+/* Baca tabel REKAP (baris valid = sel UPP berisi salah satu dari UPPS) */
+function parseRekapRows(rows){
+  let iUpp=-1, iNama=-1, iTarget=-1, iLink=-1;
+  for(const r of rows){
+    for(let c=0;c<r.length;c++){
+      const h = String(r[c]||'').toUpperCase();
+      if(iNama<0 && h.includes('NAMA PROYEK')) iNama = c;
+      if(iUpp<0 && h.trim() === 'UPP') iUpp = c;
+      if(iTarget<0 && h.trim().startsWith('TARGET') && !h.includes('STP')) iTarget = c;
+      if(iLink<0 && h.includes('LINK')) iLink = c;
+    }
+    if(iNama>=0 && iUpp>=0) break;
+  }
+  if(iNama<0 || iUpp<0 || iTarget<0) return null;
+  const iDoc0 = iTarget + 1;    // 10 kolom dokumen setelah TARGET
+  const iPending = iDoc0 + 10;  // kolom PENDING ITEM
+  let kelompok = '';
+  const out = [];
+  for(const r of rows){
+    const b = String(r[iUpp-2]||'') + ' ' + String(r[iUpp-1]||'');
+    const mKel = b.toUpperCase().match(/TARGET STP.*\d{4}/);
+    if(mKel) kelompok = mKel[0].includes('BEYOND') ? 'BEYOND KM '+mKel[0].match(/\d{4}/)[0] : 'KM '+mKel[0].match(/\d{4}/)[0];
+    const upp = String(r[iUpp]||'').trim().toUpperCase();
+    if(!UPPS.includes(upp)) continue;
+    const nama = String(r[iNama]||'').replace(/\s+/g,' ').trim();
+    if(!nama) continue;
+    const tLabel = String(r[iTarget]||'').replace(/\s+/g,' ').trim();
+    out.push({
+      nama, upp,
+      kelompok: kelompok || kelompokDariLabel(tLabel),
+      targetLabel: tLabel,
+      target: targetToDate(tLabel),
+      linkUpload: iLink>=0 ? String(r[iLink]||'').trim() : '',
+      pendingItem: statusVal(r[iPending]),
+      docs: DOCS.map((_,k)=> statusVal(r[iDoc0+k])),
+    });
+  }
+  return out.length ? out : null;
+}
+
+async function syncFromSheet(manual){
+  const btn = $('#btnSync'); btn.classList.add('spin');
+  try{
+    const res = await fetch(gvizCsvUrl('REKAP'), {cache:'no-store'});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const proyek = parseRekapRows(parseCSV(await res.text()));
+    if(!proyek) throw new Error('Sheet REKAP tidak terbaca');
+    proyek.forEach((p,i)=> p.id = i);
+    state.projects = proyek;
+    state.lastSync = Date.now();
+    save(); renderRoute();
+    if(manual) toast('Data diperbarui: '+proyek.length+' proyek dari spreadsheet.');
+  }catch(err){
+    if(manual){
+      const hint = location.protocol === 'file:'
+        ? ' Catatan: saat dibuka langsung dari file, browser memblokir pengambilan data — gunakan versi online (lihat PANDUAN).'
+        : ' Periksa koneksi internet.';
+      toast('Gagal memuat data: '+err.message+'.'+hint, 5000);
+    }
+  }finally{
+    btn.classList.remove('spin'); renderStamp();
+  }
+}
+
+/* ================= Routing (hash) ================= */
+document.querySelectorAll('.nav button').forEach(b=>{
+  b.addEventListener('click', ()=>{ location.hash = '#'+b.dataset.tab; });
+});
+window.addEventListener('hashchange', renderRoute);
+function renderRoute(){
+  const h = location.hash;
+  const mDetail = h.match(/^#p\/(\d+)$/);
+  const tab = mDetail ? null : (h === '#rekap' ? 'rekap' : 'beranda');
+  document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('on', x.dataset.tab===tab));
+  $('#tab-beranda').hidden = tab !== 'beranda';
+  $('#tab-rekap').hidden = tab !== 'rekap';
+  $('#page-detail').hidden = !mDetail;
+  if(mDetail) renderDetail(Number(mDetail[1]));
+  else if(tab==='rekap') renderRekap();
+  else renderBeranda();
+  window.scrollTo(0,0);
+}
+function renderStamp(){
+  $('#stamp').textContent = state.lastSync
+    ? 'Data per: '+fmtWaktu(state.lastSync)+' (spreadsheet monitoring)'
+    : 'Data cadangan bawaan — menunggu koneksi ke spreadsheet';
+}
+
+/* ================= Tab Beranda ================= */
+function filteredProjects(){
+  return state.projects.filter(p=>
+    (filterUpp==='Semua' || p.upp===filterUpp) &&
+    (filterKel==='Semua' || p.kelompok===filterKel) &&
+    (!search || normNama(p.nama).includes(normNama(search)))
+  );
+}
+function renderBeranda(){
+  const ps = state.projects;
+  const total = ps.length;
+  const done = ps.filter(isDone).length;
+  const totOK = ps.reduce((a,p)=>a+okCount(p),0);
+  const pct = total ? Math.round(totOK/(total*TOTAL_ITEM)*100) : 0;
+  const kels = [...new Set(ps.map(p=>p.kelompok))];
+
+  $('#tab-beranda').innerHTML = `
+    <div class="tiles">
+      <div class="tile"><div class="v">${total}</div><div class="l">Total proyek</div></div>
+      <div class="tile"><div class="v" style="color:var(--accent)">${pct}%</div><div class="l">Kelengkapan dokumen</div></div>
+      <div class="tile"><div class="v ok">${done}</div><div class="l">Selesai (${TOTAL_ITEM}/${TOTAL_ITEM})</div></div>
+      <div class="tile"><div class="v no">${total-done}</div><div class="l">Belum lengkap</div></div>
+    </div>
+    <div class="chips">${['Semua',...UPPS].map(u=>
+      `<button class="chip ${filterUpp===u?'on':''}" data-upp="${u}">${u}</button>`).join('')}</div>
+    <div class="chips" style="padding-top:2px">${['Semua',...kels].map(k=>
+      `<button class="chip ${filterKel===k?'on':''}" data-kel="${esc(k)}">${esc(k)}</button>`).join('')}</div>
+    <input class="search" id="cari" type="search" placeholder="Cari nama proyek…" value="${esc(search)}">
+    <div id="daftar"></div>`;
+
+  $('#tab-beranda').querySelectorAll('[data-upp]').forEach(b=>b.addEventListener('click',()=>{filterUpp=b.dataset.upp;page=1;renderBeranda();}));
+  $('#tab-beranda').querySelectorAll('[data-kel]').forEach(b=>b.addEventListener('click',()=>{filterKel=b.dataset.kel;page=1;renderBeranda();}));
+  const cari = $('#cari');
+  cari.addEventListener('input',()=>{ search = cari.value; page = 1; renderDaftar(); });
+  renderDaftar();
+}
+function renderDaftar(){
+  const list = filteredProjects();
+  const nPages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
+  if(page > nPages) page = nPages;
+  const mulai = (page-1)*PAGE_SIZE;
+  const tampil = list.slice(mulai, mulai+PAGE_SIZE);
+
+  let pager = '';
+  if(nPages > 1){
+    const nums = [];
+    for(let i=1;i<=nPages;i++) nums.push(`<button class="${i===page?'on':''}" data-pg="${i}">${i}</button>`);
+    pager = `<div class="pager">
+      <button data-pg="${page-1}" ${page<=1?'disabled':''} aria-label="Sebelumnya">‹</button>
+      ${nums.join('')}
+      <button data-pg="${page+1}" ${page>=nPages?'disabled':''} aria-label="Berikutnya">›</button>
+      <div class="info">Menampilkan ${mulai+1}–${mulai+tampil.length} dari ${list.length} proyek</div>
+    </div>`;
+  }
+  $('#daftar').innerHTML =
+    (tampil.map(projCard).join('') || '<div class="empty">Tidak ada proyek yang cocok dengan filter.</div>') + pager;
+
+  $('#daftar').querySelectorAll('[data-pg]').forEach(b=>b.addEventListener('click',()=>{
+    page = Number(b.dataset.pg); renderDaftar();
+    $('#daftar').scrollIntoView({behavior:'smooth', block:'start'});
+  }));
+  bindCards();
+}
+
+function projCard(p){
+  const n = okCount(p);
+  const miss = missingItems(p);
+  const badgeCls = n===TOTAL_ITEM ? 'full' : (n===0 ? 'zero' : '');
+  const missTxt = miss.map(m => m.status==='PROSES'
+      ? `<span class="pr">${esc(m.nama)} (proses)</span>` : `<b>${esc(m.nama)}</b>`).join(', ');
+  return `<div class="card proj" data-id="${p.id}">
+    <div class="top"><h3>${esc(p.nama)}</h3><span class="badge prog ${badgeCls}">${n}/${TOTAL_ITEM}</span></div>
+    <div class="meta">
+      <span class="badge upp">${esc(p.upp)}</span>
+      <span class="badge kel ${p.kelompok==='KM 2026'?'km26':''}">${esc(p.kelompok)}</span>
+      ${p.targetLabel?`<span class="badge tgt">🎯 ${esc(p.targetLabel)}${p.target?' ('+fmtTanggal(p.target)+')':''}</span>`:''}
+    </div>
+    ${indikatorHTML(p)}
+    ${miss.length ? `<div class="missing">Kurang: ${missTxt}</div>` : `<div class="done-note">✓ Seluruh ${TOTAL_ITEM} item lengkap</div>`}
+    <div class="actions">
+      <button class="btn primary" data-act="upload">Lengkapi Dokumen</button>
+      <button class="btn ghost" data-act="detail">Detail</button>
+    </div>
+  </div>`;
+}
+function indikatorHTML(p){
+  return `<div class="docgrid">${p.docs.map((s,i)=>
+      `<span class="doc ${s}" title="${esc(DOCS[i].nama)}: ${s}"><span class="s">${SYM[s]}</span><span class="a">${DOCS[i].abbr}</span></span>`).join('')}
+    <span class="docsep" aria-hidden="true"></span>
+    <span class="doc ${p.pendingItem}" title="${PENDING_LABEL}: ${p.pendingItem}"><span class="s">${SYM[p.pendingItem]}</span><span class="a">PNDG</span></span>
+  </div>`;
+}
+function bukaUpload(p){
+  if(p.linkUpload) window.open(p.linkUpload,'_blank');
+  else toast('Link upload OneDrive untuk proyek ini belum tersedia. Hubungi Sub-Bidang Administrasi Teknik.');
+}
+function bindCards(){
+  document.querySelectorAll('.proj').forEach(card=>{
+    const p = state.projects.find(x=>String(x.id)===card.dataset.id);
+    if(!p) return;
+    card.addEventListener('click', e=>{
+      const act = e.target.closest('[data-act]');
+      if(act) e.stopPropagation();
+      if(act && act.dataset.act==='upload') bukaUpload(p);
+      else location.hash = '#p/'+p.id;   // kartu atau tombol Detail
+    });
+  });
+}
+
+/* ================= Halaman Detail per proyek ================= */
+function renderDetail(id){
+  const p = state.projects.find(x=>x.id===id);
+  const el = $('#page-detail');
+  if(!p){ el.innerHTML = '<div class="empty">Proyek tidak ditemukan.</div>'; return; }
+  const n = okCount(p);
+  el.innerHTML = `
+    <div class="backbar">
+      <button id="btnBack">← Kembali</button>
+      <span class="t">Detail proyek</span>
+    </div>
+    <div class="card">
+      <div class="top" style="display:flex;gap:8px;align-items:flex-start">
+        <h3 style="flex:1;font-size:15px;font-weight:700;line-height:1.3">${esc(p.nama)}</h3>
+        <span class="badge prog ${n===TOTAL_ITEM?'full':(n===0?'zero':'')}">${n}/${TOTAL_ITEM}</span>
+      </div>
+      <div class="meta">
+        <span class="badge upp">${esc(p.upp)}</span>
+        <span class="badge kel ${p.kelompok==='KM 2026'?'km26':''}">${esc(p.kelompok)}</span>
+        ${p.targetLabel?`<span class="badge tgt">🎯 ${esc(p.targetLabel)}${p.target?' ('+fmtTanggal(p.target)+')':''}</span>`:''}
+      </div>
+      ${indikatorHTML(p)}
+      <div class="actions"><button class="btn primary" id="btnUpload">Lengkapi Dokumen</button></div>
+    </div>
+    <h2 class="sec" style="margin-top:16px">Rincian Pending Item</h2>
+    <div id="detailBody"><div class="loading">Memuat rincian dari spreadsheet <span class="dot"></span><span class="dot"></span><span class="dot"></span></div></div>`;
+  $('#btnBack').addEventListener('click', ()=>{ history.length > 1 ? history.back() : location.hash = '#beranda'; });
+  $('#btnUpload').addEventListener('click', ()=>bukaUpload(p));
+  muatRincian(p);
+}
+
+async function muatRincian(p){
+  const body = $('#detailBody');
+  const sheetName = SHEET_MAP[normNama(p.nama)] || p.nama;
+  try{
+    let data = detailCache[sheetName];
+    if(!data){
+      const res = await fetch(gvizCsvUrl(sheetName), {cache:'no-store'});
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      data = parsePendingSheet(parseCSV(await res.text()));
+      if(!data) throw new Error('format sheet tidak dikenali');
+      detailCache[sheetName] = data;
+    }
+    if(String(location.hash) !== '#p/'+p.id) return; // pengguna sudah pindah halaman
+    renderRincian(body, data);
+  }catch(err){
+    if(String(location.hash) !== '#p/'+p.id) return;
+    const alasan = location.protocol==='file:'
+      ? 'Rincian hanya bisa dimuat pada versi online (browser memblokir pengambilan data dari file lokal).'
+      : 'Rincian belum tersedia untuk proyek ini ('+esc(err.message)+').';
+    body.innerHTML = `<div class="card"><div class="empty" style="padding:16px 0">${alasan}</div>
+      <div class="note">Status kelengkapan 11 item di atas tetap sesuai sheet REKAP.</div></div>`;
+  }
+}
+
+/* Parse sheet per-proyek: ambil HANYA bagian "Pending Item & Catatan Hasil Invent STOP-STAP".
+   Kolom (hasil gviz): 1=No, 2=Deskripsi, 3=Deadline, 4=PIC, 5=Checklist(v/x), 6=Tgl Diserahkan, 7=Ket. */
+function parsePendingSheet(rows){
+  if(!rows.length) return null;
+  const headText = (rows[0]||[]).join(' ');
+  if(!/deskripsi/i.test(headText)) return null;
+  const mUpd = headText.match(/update\s*:\s*([0-9]{1,2}\s+[A-Za-z]+\s+\d{4})/i);
+  const items = [];
+  for(let i=1;i<rows.length;i++){
+    const r = rows[i];
+    const no = String(r[1]||'').trim();
+    const desc = String(r[2]||'').replace(/\s+/g,' ').trim();
+    if(/^(STOP|STAP|STP)$/i.test(no)) break;            // baris status penutup
+    if(no.startsWith('*)') || desc.startsWith('*)')) break; // baris catatan kaki
+    if(/kelengkapan\s+dokumen\s+stp/i.test(desc)) break; // bagian kedua tidak ditampilkan
+    if(!desc) continue;
+    if(desc.startsWith('-') && items.length){
+      items[items.length-1].subs.push(desc.replace(/^-\s*/,''));
+      continue;
+    }
+    const cek = String(r[5]||'').trim().toLowerCase();
+    const deadlineRaw = String(r[3]||'').trim();
+    const close = cek.startsWith('v') || /^close/i.test(deadlineRaw);
+    items.push({
+      no: no ? String(parseInt(no,10) || no) : String(items.length+1),
+      desc, subs: [],
+      close,
+      deadline: /^close/i.test(deadlineRaw) ? '' : fmtSheetDate(deadlineRaw),
+      selesai: fmtSheetDate(r[6]),
+    });
+  }
+  return { update: mUpd ? mUpd[1] : '', items };
+}
+
+function renderRincian(body, data){
+  const open = data.items.filter(x=>!x.close).length;
+  const close = data.items.length - open;
+  if(!data.items.length){
+    body.innerHTML = '<div class="card"><div class="empty" style="padding:16px 0">Tidak ada butir pending item pada sheet proyek ini.</div></div>';
+    return;
+  }
+  body.innerHTML = `
+    <div class="dsum">
+      <div class="b o"><div class="v">${open}</div><div class="l">Open</div></div>
+      <div class="b c"><div class="v">${close}</div><div class="l">Close</div></div>
+    </div>
+    ${data.items.map(it=>`
+      <div class="card pend ${it.close?'close':'open'}">
+        <div class="head">
+          <span class="no">${esc(it.no)}</span>
+          <div class="desc">${esc(it.desc)}${it.subs.map(s=>`<div class="sub">– ${esc(s)}</div>`).join('')}</div>
+          <span class="stat">${it.close?'CLOSE':'OPEN'}</span>
+        </div>
+        ${it.close
+          ? (it.selesai?`<div class="when">Completion: <b>${esc(it.selesai)}</b></div>`:'')
+          : (it.deadline?`<div class="when">Deadline: <b>${esc(it.deadline)}</b></div>`:'')}
+      </div>`).join('')}
+    ${data.update?`<div class="note">Update data pending item: ${esc(data.update)} · Sumber: sheet proyek pada spreadsheet monitoring.</div>`:''}`;
+}
+
+/* ================= Tab Rekap ================= */
+function hitungRekap(){
+  const ps = state.projects, total = ps.length;
+  const totOK = ps.reduce((a,p)=>a+okCount(p),0);
+  const done = ps.filter(isDone).length;
+  const none = ps.filter(p=>okCount(p)===0).length;
+  const proses = total - done - none;
+  const labels = itemLabels();
+  // Pareto: jumlah proyek yang kurang per item, urut menurun
+  const hambat = labels.map((nm,i)=>({nama:nm, i, n: ps.filter(p=>itemStatuses(p)[i]!=='OK').length}))
+    .filter(x=>x.n>0).sort((a,b)=>b.n-a.n);
+  // Kekurangan per UPP: urutan item mengikuti pareto & skala sumbu disamakan agar 4 grafik mudah dibandingkan
+  let maxKurang = 0;
+  const perUppKurang = UPPS.map(u=>{
+    const g = ps.filter(p=>p.upp===u);
+    if(!g.length) return null;
+    const items = hambat.map(h=>({nama:h.nama, n: g.filter(p=>itemStatuses(p)[h.i]!=='OK').length}));
+    maxKurang = Math.max(maxKurang, ...items.map(x=>x.n));
+    return {upp:u, nProyek:g.length, items};
+  }).filter(Boolean);
+  return {total, totOK, done, none, proses, pct: total?Math.round(totOK/(total*TOTAL_ITEM)*100):0,
+          hambat, perUppKurang, maxKurang};
+}
+
+function renderRekap(){
+  const r = hitungRekap();
+  $('#tab-rekap').innerHTML = `
+    ${r.perUppKurang.map(u=>`
+    <div class="card"><h2 class="sec">Kekurangan dokumen — UPP ${esc(u.upp)}</h2>
+      <div style="font-size:12px;color:var(--ink-3);margin-bottom:4px">Jumlah proyek (dari ${u.nProyek}) yang masih kurang per jenis item</div>
+      <div class="chartbox" style="height:${26*u.items.length+40}px"><canvas id="chUpp-${esc(u.upp)}"></canvas></div></div>`).join('')}
+    <div class="card"><h2 class="sec">Pareto kekurangan dokumen</h2>
+      <div style="font-size:12px;color:var(--ink-3);margin-bottom:4px">Jumlah proyek (seluruh UPP) yang masih kekurangan tiap jenis item, urut terbanyak</div>
+      <div class="chartbox" style="height:${30*r.hambat.length+40}px"><canvas id="chDok"></canvas></div></div>
+    <div class="rekap-actions">
+      <button class="btn primary" id="btnPDF">📄 Ekspor PDF</button>
+      <button class="btn ghost" id="btnShare">Bagikan</button>
+    </div>`;
+  r.perUppKurang.forEach(u=>buatChartKurangUpp('chUpp-'+u.upp, u.items, r.maxKurang, false));
+  buatChartDok('chDok', r.hambat, false);
+  $('#btnPDF').addEventListener('click', eksporPDF);
+  $('#btnShare').addEventListener('click', bagikan);
+}
+
+const CHART_INK = '#52514e', CHART_MUTED = '#898781', CHART_GRID = '#e1e0d9';
+function chartDefaults(){
+  Chart.defaults.font.family = 'system-ui,-apple-system,"Segoe UI",sans-serif';
+  Chart.defaults.color = CHART_MUTED;
+}
+/* Grafik kekurangan 11 item milik SATU UPP; sumbu-x sama (maxX) di keempat grafik agar sebanding */
+function buatChartKurangUpp(canvasId, items, maxX, forPdf){
+  chartDefaults();
+  if(charts[canvasId]) charts[canvasId].destroy();
+  charts[canvasId] = new Chart(document.getElementById(canvasId), {
+    type:'bar',
+    data:{ labels: items.map(x=>x.nama),
+      datasets:[{ data: items.map(x=>x.n), backgroundColor:'#2a78d6',
+        borderRadius:{topRight:4,bottomRight:4}, borderSkipped:'start',
+        barThickness: forPdf?14:11, maxBarThickness:16 }]},
+    options:{
+      indexAxis:'y', responsive:!forPdf, maintainAspectRatio:false,
+      animation: forPdf?false:{duration:300}, devicePixelRatio: forPdf?2:undefined,
+      layout:{padding:{right:30}},
+      plugins:{legend:{display:false}, tooltip:{enabled:!forPdf,
+        callbacks:{label:c=>c.parsed.x+' proyek masih kurang'}}},
+      scales:{
+        x:{min:0,max:Math.max(2,maxX),grid:{color:CHART_GRID,drawTicks:false},border:{color:CHART_GRID},
+           ticks:{precision:0,color:CHART_MUTED,font:{size:11}}},
+        y:{grid:{display:false},border:{display:false},ticks:{color:CHART_INK,font:{size:11}}}
+      }
+    },
+    plugins:[nilaiUjung(v=>v||'')]
+  });
+}
+function buatChartDok(canvasId, hambat, forPdf){
+  chartDefaults();
+  if(charts[canvasId]) charts[canvasId].destroy();
+  charts[canvasId] = new Chart(document.getElementById(canvasId), {
+    type:'bar',
+    data:{ labels: hambat.map(x=>x.nama),
+      datasets:[{ data: hambat.map(x=>x.n), backgroundColor:'#1baf7a',
+        borderRadius:{topRight:4,bottomRight:4}, borderSkipped:'start',
+        barThickness: forPdf?18:14, maxBarThickness:20 }]},
+    options:{
+      indexAxis:'y', responsive:!forPdf, maintainAspectRatio:false,
+      animation: forPdf?false:{duration:300}, devicePixelRatio: forPdf?2:undefined,
+      layout:{padding:{right:34}},
+      plugins:{legend:{display:false}, tooltip:{enabled:!forPdf,
+        callbacks:{label:c=>c.parsed.x+' proyek masih kurang'}}},
+      scales:{
+        x:{min:0,grid:{color:CHART_GRID,drawTicks:false},border:{color:CHART_GRID},
+           ticks:{precision:0,color:CHART_MUTED,font:{size:11}}},
+        y:{grid:{display:false},border:{display:false},ticks:{color:CHART_INK,font:{size:11}}}
+      }
+    },
+    plugins:[nilaiUjung(v=>v)]
+  });
+}
+function nilaiUjung(fmt){
+  return { id:'nilaiUjung', afterDatasetsDraw(chart){
+    const {ctx} = chart;
+    ctx.save(); ctx.fillStyle = CHART_INK;
+    ctx.font = '600 11px system-ui,-apple-system,"Segoe UI",sans-serif';
+    ctx.textBaseline = 'middle';
+    chart.getDatasetMeta(0).data.forEach((bar,i)=>{
+      ctx.fillText(fmt(chart.data.datasets[0].data[i]), bar.x+6, bar.y);
+    });
+    ctx.restore();
+  }};
+}
+
+function bagikan(){
+  const r = hitungRekap();
+  const km = state.projects.filter(p=>p.kelompok==='KM 2026');
+  const now = new Date();
+  let teks = 'Rekap Monitoring Dokumen STP UIP Sulawesi — '+BULAN_ID[now.getMonth()+1]+' '+now.getFullYear()+'\n'+
+    'Kelengkapan: '+r.pct+'% ('+r.totOK+'/'+(r.total*TOTAL_ITEM)+' item, '+r.total+' proyek)\n'+
+    'Selesai: '+r.done+' · Proses: '+r.proses+' · Belum jalan: '+r.none+'\n'+
+    'Target STP (KM) 2026:\n'+
+    km.map(p=>'• '+p.nama+' — '+okCount(p)+'/'+TOTAL_ITEM).join('\n');
+  if(navigator.share) navigator.share({title:'Rekap Monitoring STP', text:teks}).catch(()=>{});
+  else window.open('https://wa.me/?text='+encodeURIComponent(teks),'_blank');
+}
+
+/* ================= Ekspor PDF ================= */
+async function eksporPDF(){
+  toast('Menyusun PDF…');
+  const r = hitungRekap();
+  const holder = document.createElement('div');
+  holder.style.cssText = 'position:fixed;left:-2000px;top:0;background:#fff';
+  holder.innerHTML = '<canvas id="pdfDok" width="760" height="'+(r.hambat.length*30+50)+'"></canvas>'+
+    r.perUppKurang.map((u,i)=>'<canvas id="pdfU'+i+'" width="380" height="'+(u.items.length*24+44)+'"></canvas>').join('');
+  document.body.appendChild(holder);
+  buatChartDok('pdfDok', r.hambat, true);
+  r.perUppKurang.forEach((u,i)=>buatChartKurangUpp('pdfU'+i, u.items, r.maxKurang, true));
+  await new Promise(res=>setTimeout(res,80));
+
+  const {jsPDF} = window.jspdf;
+  const doc = new jsPDF({unit:'mm',format:'a4',compress:true});
+  const W = 210, M = 14;
+  const now = new Date();
+  const periode = BULAN_ID[now.getMonth()+1]+' '+now.getFullYear();
+
+  doc.setFont('helvetica','bold'); doc.setFontSize(13);
+  doc.text('PT PLN (PERSERO) - UIP SULAWESI', W/2, 16, {align:'center'});
+  doc.setFontSize(11.5);
+  doc.text('Laporan Rekap Monitoring Kelengkapan Dokumen STP', W/2, 23, {align:'center'});
+  doc.setFont('helvetica','normal'); doc.setFontSize(10);
+  doc.setTextColor(90); doc.text('Periode: '+periode, W/2, 29, {align:'center'});
+  doc.setDrawColor(42,120,214); doc.setLineWidth(.7); doc.line(M, 32.5, W-M, 32.5);
+
+  doc.setTextColor(0);
+  const ring = [
+    ['Total proyek', String(r.total)],
+    ['Kelengkapan', r.pct+'% ('+r.totOK+'/'+(r.total*TOTAL_ITEM)+' item)'],
+    ['Selesai', String(r.done)], ['Proses', String(r.proses)], ['Belum jalan', String(r.none)],
+  ];
+  const bw = (W-2*M)/ring.length;
+  ring.forEach((it,i)=>{
+    const x = M + i*bw;
+    doc.setFillColor(249,249,247); doc.setDrawColor(215); doc.setLineWidth(.2);
+    doc.roundedRect(x+1, 36, bw-2, 15, 1.5, 1.5, 'FD');
+    doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.text(it[1], x+bw/2, 43, {align:'center'});
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(90);
+    doc.text(it[0], x+bw/2, 48, {align:'center'}); doc.setTextColor(0);
+  });
+
+  let y = 57;
+  doc.setFont('helvetica','bold'); doc.setFontSize(10);
+  doc.text('Pareto kekurangan dokumen (jumlah proyek yang masih kurang, seluruh UPP)', M, y);
+  const c2 = document.getElementById('pdfDok');
+  let h2 = (W-2*M) * c2.height / c2.width;
+  doc.addImage(c2.toDataURL('image/png'), 'PNG', M, y+2, W-2*M, h2);
+  y += h2 + 10;
+
+  // Kekurangan per UPP: 4 grafik dalam susunan 2 kolom
+  doc.text('Kekurangan dokumen per UPP', M, y); y += 3;
+  const colW = (W - 2*M - 6) / 2;
+  for(let i=0; i<r.perUppKurang.length; i+=2){
+    const pair = r.perUppKurang.slice(i, i+2);
+    const imgs = pair.map((u,j)=>{
+      const c = document.getElementById('pdfU'+(i+j));
+      return {u, c, h: colW * c.height / c.width};
+    });
+    const rowH = Math.max(...imgs.map(x=>x.h)) + 8;
+    if(y + rowH > 272){ doc.addPage(); y = 18; }
+    imgs.forEach((x,j)=>{
+      const px = M + j*(colW+6);
+      doc.setFont('helvetica','bold'); doc.setFontSize(8.5);
+      doc.text('UPP '+x.u.upp, px, y+3);
+      doc.addImage(x.c.toDataURL('image/png'), 'PNG', px, y+5, colW, x.h);
+    });
+    y += rowH + 2;
+  }
+  y += 4;
+  doc.setFontSize(10);
+
+  const kolom = ['No','Nama Proyek','UPP','Target','Progres','Item Kurang'];
+  const barisProyek = (p,i)=>[String(i+1), p.nama, p.upp, p.targetLabel||'-', okCount(p)+'/'+TOTAL_ITEM,
+    missingItems(p).map(m=>m.nama+(m.status==='PROSES'?' (proses)':'')).join(', ')||'-'];
+  const body = [];
+  const km26 = state.projects.filter(p=>p.kelompok==='KM 2026');
+  if(km26.length){
+    body.push([{content:'TARGET STP (KM) 2026', colSpan:6, styles:{fillColor:[253,243,220], textColor:[138,94,0], fontStyle:'bold'}}]);
+    km26.forEach((p,i)=>body.push(barisProyek(p,i)));
+  }
+  const sisa = state.projects.filter(p=>p.kelompok!=='KM 2026');
+  UPPS.forEach(u=>{
+    const g = sisa.filter(p=>p.upp===u);
+    if(!g.length) return;
+    body.push([{content:'UPP '+u+' — proyek lainnya ('+g.length+')', colSpan:6, styles:{fillColor:[232,240,251], textColor:[28,92,171], fontStyle:'bold'}}]);
+    g.forEach((p,i)=>body.push(barisProyek(p,i)));
+  });
+  if(y > 250){ doc.addPage(); y = 18; }
+  doc.autoTable({
+    startY:y, head:[kolom], body,
+    margin:{left:M, right:M, bottom:24},
+    styles:{font:'helvetica', fontSize:7.4, cellPadding:1.6, lineColor:[225,224,217], lineWidth:.15, textColor:[11,11,11]},
+    headStyles:{fillColor:[42,120,214], textColor:255, fontSize:7.6, fontStyle:'bold'},
+    columnStyles:{0:{cellWidth:8}, 1:{cellWidth:60}, 2:{cellWidth:17}, 3:{cellWidth:18}, 4:{cellWidth:14}, 5:{cellWidth:'auto'}},
+    didParseCell(d){ if(d.section==='body' && d.column.index===4 && d.cell.raw===TOTAL_ITEM+'/'+TOTAL_ITEM) d.cell.styles.textColor=[12,163,12]; },
+  });
+
+  const nPages = doc.getNumberOfPages();
+  for(let i=1;i<=nPages;i++){
+    doc.setPage(i);
+    doc.setDrawColor(215); doc.setLineWidth(.2); doc.line(M, 282, W-M, 282);
+    doc.setFont('helvetica','italic'); doc.setFontSize(7.2); doc.setTextColor(110);
+    doc.text('Laporan Otomatis by Sub-Bidang Administrasi Teknik.', M, 286.5);
+    doc.text('Sumber data: Monitoring Kelengkapan Dokumen STP UIP Sulawesi.', M, 290.5);
+    doc.setFont('helvetica','normal');
+    doc.text('Dibuat '+fmtWaktu(Date.now()), W-M, 286.5, {align:'right'});
+    doc.text('Hal. '+i+'/'+nPages, W-M, 290.5, {align:'right'});
+  }
+  doc.save('Rekap-Monitoring-STP-'+now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'.pdf');
+
+  Object.keys(charts).filter(k=>k.startsWith('pdf')).forEach(k=>{ charts[k].destroy(); delete charts[k]; });
+  holder.remove();
+  toast('PDF berhasil dibuat.');
+}
+
+/* ================= Boot ================= */
+$('#btnSync').addEventListener('click', ()=>syncFromSheet(true));
+(function boot(){
+  state = load() || { projects: decodeSeed(), lastSync: null };
+  renderStamp(); renderRoute();
+  if(navigator.onLine !== false) syncFromSheet(false); // muat data terbaru secara senyap
+})();
+</script>
+</body>
+</html>
